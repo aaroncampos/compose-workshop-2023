@@ -7,7 +7,7 @@ interface Props {
 }
 
 function StoreProvider({ children }: Props) {
-  const swag = [] as Swag[];
+  const [swag, setSwag] = useState<Swag[]>([]);
   const [books, setBooks] = useState<Book[]>([]);
 
   const fetchBooks = async (id: string = '') => {
@@ -18,7 +18,13 @@ function StoreProvider({ children }: Props) {
     }
   };
 
-  const fetchSwag = async () => {};
+  const fetchSwag = async () => {
+    if (!swag.length) {
+      const response = await fetch('/api/swag');
+      const data = await response.json();
+      setSwag(data);
+    }
+  };
 
   return (
     <StoreContext.Provider
