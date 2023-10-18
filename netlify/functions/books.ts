@@ -1,9 +1,25 @@
 import csv from 'csvtojson';
 import { Config } from '@netlify/functions';
+import { createHash } from 'crypto';
 
 export default async (req: Request, context: Context) => {
     const { id } = context.params;
     console.log(`Looking up ${id || 'all books'}...`);
+
+    const etag = createHash('md5')
+        .update(id || 'all')
+        .digest('hex');
+
+    const headers = {
+        'Cache-Control': 'public, max-age=0, must-revalidate', // Tell browsers to always revalidate
+        'Netlify-CDN-Cache-Control': 'public, max-age=31536000, must-revalidate', // Tell Edge to cache asset for up to a year
+        'Cache-Tag': `books,promotions`,
+        ETag: `"${etag}"`,
+    };
+
+    if (req.headers.get('if-none-match') === etag) {
+        return new Response('Not modified', { status: 304, headers });
+    }
 
     const { origin } = new URL(req.url);
     const response = await fetch(`${origin}/books.csv`);
@@ -13,12 +29,12 @@ export default async (req: Request, context: Context) => {
     if (id) {
         const book = books.find(b => b.id === id);
         if (!book) {
-            return new Response('Not found', { status: 404 });
+            return new Response('Not found', { status: 404, headers });
         }
-        return Response.json(book);
+        return Response.json(book, { headers });
     }
 
-    return Response.json(books);
+    return Response.json(books, { headers });
 };
 
 export const config: Config = {
